@@ -1,5 +1,6 @@
 use macroquad::prelude::*;
 
+const GAP_WIDTH: f32 = 10.0;
 // Your custom vector struct
 #[derive(Debug, Copy, Clone)]
 pub struct SimpleVec2 {
@@ -26,7 +27,9 @@ pub struct Player {
     pub jump_height: f32,
     pub gravity: f32,
     pub acceleration: f32,
-    pub is_grounded: bool
+    pub is_grounded: bool,
+    pub player_height: f32,
+    pub player_width: f32,
 }
 
 pub trait PlayerLogic {
@@ -36,15 +39,18 @@ pub trait PlayerLogic {
         jump_height: f32,
         gravity: f32,
         acceleration: f32,
-        is_grounder: bool
+        is_grounder: bool,
+        player_height: f32,
+        player_width: f32,
     ) -> Self;
 
-    // mutable self so position_vector can be updated
-    fn control_rectangle(&mut self, dt: f32, speed: Option<&f32>);
+    fn control_rectangle(&mut self, dt: f32, speed: Option<&f32>, screen_width: f32);
 
-    fn draw_player(&self, height: f32, width: f32, color: Color);
+    fn draw_player(&self, color: Color);
 
     fn apply_gravity(&mut self);
+
+    fn get_player_rect(&mut self) -> Rect;
 }
 
 impl PlayerLogic for Player {
@@ -54,7 +60,9 @@ impl PlayerLogic for Player {
         jump_height: f32,
         gravity: f32,
         acceleration: f32,
-        is_grounded: bool
+        is_grounded: bool,
+        player_height: f32,
+        player_width: f32,
     ) -> Self {
         Player {
             position_vector: initial_position,
@@ -62,11 +70,13 @@ impl PlayerLogic for Player {
             jump_height,
             gravity,
             acceleration,
-            is_grounded
+            is_grounded,
+            player_height,
+            player_width,
         }
     }
 
-    fn control_rectangle(&mut self, dt: f32, speed: Option<&f32>) {
+    fn control_rectangle(&mut self, dt: f32, speed: Option<&f32>, screen_width: f32) {
         let actual_speed = *speed.unwrap_or(&self.movement_speed);
 
         if is_key_down(KeyCode::Right) {
@@ -76,23 +86,33 @@ impl PlayerLogic for Player {
             self.position_vector.x -= actual_speed * dt;
         }
 
-        // if !self.is_grounded && is_key_down(KeyCode::Space) {
-        //     self.position_vector.y += self.jump_height;
-        // }
+        // Clamp position to stay inside bounds [0, screen_width - player_width]
+        self.position_vector.x = self
+            .position_vector
+            .x
+            .clamp(GAP_WIDTH, screen_width - GAP_WIDTH);
     }
 
-    fn draw_player(&self, height: f32, width: f32, color: Color) {
+    fn draw_player(&self, color: Color) {
         draw_rectangle(
             self.position_vector.x,
             self.position_vector.y,
-            width,
-            height,
+            self.player_width,
+            self.player_height,
             color,
         );
     }
 
     fn apply_gravity(&mut self) {
-        self.position_vector.y += &self.gravity;
+        self.position_vector.y += self.gravity;
     }
 
+    fn get_player_rect(&mut self) -> Rect {
+        Rect::new(
+            self.position_vector.x,
+            self.position_vector.y,
+            self.player_width,
+            self.player_height,
+        )
+    }
 }
